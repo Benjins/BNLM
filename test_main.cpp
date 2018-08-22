@@ -70,6 +70,21 @@ int main() {
 	}
 
 	{
+		BNLM::Matrix<float, 3, 3> mat = BNLM::Matrix<float, 3, 3>::Identity();
+		mat(0, 1) = -1.0f;
+		mat(0, 2) = 2.0f;
+		mat(1, 2) = 3.0f;
+		BNLM::Vector2f v1;
+		v1(0) = 2.0f;
+		v1(1) = 1.0f;
+
+		BNLM::Vector2f v2 = mat.block<2, 2>(0, 1) * v1;
+
+		ASSERT(v2(0) == 0.0f);
+		ASSERT(v2(1) == 5.0f);
+	}
+
+	{
 		BNLM::Vector3f v1(1.0f, 2.0f, 5.0f);
 		BNLM::Vector2f v2 = v1.subvec<2>(0);
 		ASSERT(v2.x() == 1.0f);
@@ -242,6 +257,25 @@ int main() {
 				mat(i, j) = i * 0.5f + j * 2.25f;
 			}
 		}
+	}
+
+	{
+		BNLM::MatrixXf mat(5, 2);
+		mat.LoadIdentity();
+		mat(4, 0) = 2.0f;
+		mat(4, 1) = 1.0f;
+
+		BNLM::VectorXf vec1(2);
+		vec1(0) = 2.5f;
+		vec1(1) = -4.5f;
+
+		BNLM::VectorXf vec2 = mat * vec1;
+		ASSERT(vec2.dims == 5);
+		ASSERT(vec2(0) == 2.5f);
+		ASSERT(vec2(1) == -4.5f);
+		ASSERT(vec2(2) == 0.0f);
+		ASSERT(vec2(3) == 0.0f);
+		ASSERT(vec2(4) == 0.5f);
 	}
 
 	return 0;

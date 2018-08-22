@@ -200,6 +200,7 @@ struct MatrixBlockBase {
 			BNS_FOR_I(_Cols) {
 				val += (vec.data[i] * dataStart[stride * j + i]);
 			}
+			retVal.data[j] = val;
 		}
 
 		return retVal;
@@ -396,6 +397,7 @@ struct Matrix {
 };
 
 struct Vector2f : Vector<float, 2> {
+	Vector2f() { }
 	Vector2f(const Vector<float, 2>& orig) {
 		data[0] = orig.data[0];
 		data[1] = orig.data[1];
@@ -577,16 +579,21 @@ struct VectorX {
 		SetSize(d);
 	}
 
+	VectorX(const VectorX<_T>& orig) {
+		SetSize(orig.dims);
+		if (orig.data != nullptr) {
+			BNS_MEMCPY(data, orig.data, sizeof(_T) * dims);
+		}
+	}
+
 	~VectorX() {
 		Destroy();
 	}
 
 	// TODO:
-	// Copy ctor
 	// Copy assign
 
 	// Zero
-	// Identity
 
 	void Destroy() {
 		if (data != nullptr) {
@@ -629,8 +636,14 @@ struct MatrixX {
 		SetSize(r, c);
 	}
 
+	MatrixX(const MatrixX<_T>& orig) {
+		SetSize(orig.rows, orig.cols);
+		if (orig.data != nullptr) {
+			BNS_MEMCPY(data, orig.data, sizeof(_T) * rows * cols);
+		}
+	}
+
 	// TODO:
-	// Copy ctor
 	// Copy assign
 
 	// Zero
@@ -638,6 +651,20 @@ struct MatrixX {
 
 	// TODO: Capacity, etc.
 	//int capacity = 0;
+
+	void ZeroOut() {
+		BNS_FOR_I(rows*cols) {
+			data[i] = 0;
+		}
+	}
+
+	void LoadIdentity() {
+		BNS_FOR_I(rows) {
+			BNS_FOR_J(cols) {
+				data[i * cols + j] = (i == j) ? 1 : 0;
+			}
+		}
+	}
 
 	void Destroy() {
 		if (data != nullptr) {
@@ -681,6 +708,7 @@ struct MatrixX {
 			BNS_FOR_I(cols) {
 				val += (vec.data[i] * data[cols * j + i]);
 			}
+			retVal.data[j] = val;
 		}
 
 		return retVal;
