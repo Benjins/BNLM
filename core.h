@@ -15,6 +15,7 @@ struct Matrix;
 
 template<typename _T, int _Dims>
 struct Vector {
+	static_assert(_Dims > 0, "Check vector dimensions");
 	_T data[_Dims];
 
 	_T operator()(int d) const {
@@ -35,11 +36,20 @@ struct Vector {
 			retVal.data[i] = data[i];
 		}
 
-		retVal.data[_Dims] = 1.0f;
+		retVal.data[_Dims] = 1;
 		return retVal;
 	}
 
-	// TODO: Issue with _Dims = 1?
+	static Vector<_T, _Dims> Zero() {
+		Vector<_T, _Dims> zero;
+
+		BNS_FOR_I(_Dims) {
+			zero.data[i] = 0;
+		}
+
+		return zero;
+	}
+
 	Vector<_T, _Dims - 1> hnorm() const{
 		Vector<_T, _Dims - 1> retVal;
 		float s = 1.0f / data[_Dims - 1];
@@ -61,7 +71,7 @@ struct Vector {
 		return retVal;
 	}
 
-	Vector<_T, _Dims> operator+(const Vector<_T, _Dims>& v) {
+	Vector<_T, _Dims> operator+(const Vector<_T, _Dims>& v) const {
 		Vector<_T, _Dims> retVal;
 		BNS_FOR_I(_Dims) {
 			retVal(i) = data[i] + v(i);
@@ -69,7 +79,7 @@ struct Vector {
 		return retVal;
 	}
 
-	Vector<_T, _Dims> operator*(const float s) {
+	Vector<_T, _Dims> operator*(const float s) const {
 		Vector<_T, _Dims> retVal;
 		BNS_FOR_I(_Dims) {
 			retVal(i) = data[i] * s;
@@ -78,7 +88,7 @@ struct Vector {
 	}
 
 	// TODO: Multiplay reciprocal? :p
-	Vector<_T, _Dims> operator/(const float s) {
+	Vector<_T, _Dims> operator/(const float s) const {
 		Vector<_T, _Dims> retVal;
 		BNS_FOR_I(_Dims) {
 			retVal(i) = data[i] / s;
@@ -86,7 +96,7 @@ struct Vector {
 		return retVal;
 	}
 
-	Vector<_T, _Dims> operator-(const Vector<_T, _Dims>& v) {
+	Vector<_T, _Dims> operator-(const Vector<_T, _Dims>& v) const {
 		Vector<_T, _Dims> retVal;
 		BNS_FOR_I(_Dims) {
 			retVal(i) = data[i] - v(i);
@@ -99,6 +109,7 @@ struct Vector {
 		BNS_FOR_I(_Dims) {
 			retVal += BNS_SQR(data[i]);
 		}
+		return retVal;
 	}
 
 	_T Mag() const {
@@ -152,14 +163,14 @@ struct RemoveConst<const _T> {
 };
 
 template<typename _T, int _Rows, int _Cols>
-struct MatrixBlock {
+struct MatrixBlockBase {
 	_T* dataStart;
 	// stride is in elements, not bytes
 	int stride;
 
 	typedef typename RemoveConst<_T>::type _MutableT;
 
-	MatrixBlock(_T* _dataStart, int _stride) {
+	MatrixBlockBase(_T* _dataStart, int _stride) {
 		dataStart = _dataStart;
 		stride = _stride;
 	}
@@ -199,6 +210,7 @@ struct MatrixBlock {
 	//	MatrixBlock<_T, _Cols, _Rows> t(dataStart, stride);
 	//}
 
+	/*
 	void operator=(const Vector<_MutableT, _Rows>& vec) {
 		static_assert(_Cols == 1, "JLDNG");
 		BNS_FOR_I(_Rows) {
@@ -206,7 +218,14 @@ struct MatrixBlock {
 		}
 	}
 
-	// assign?
+	void operator=(const Vector<_MutableT, _Cols>& vec) {
+		static_assert(_Rows == 1, "JLDNG");
+		BNS_FOR_I(_Cols) {
+			dataStart[i] = vec.data[i];
+		}
+	}
+	*/
+
 	void operator=(const Matrix<_MutableT, _Rows, _Cols>& mat) {
 		BNS_FOR_J(_Rows) {
 			BNS_FOR_I(_Cols) {
@@ -215,6 +234,40 @@ struct MatrixBlock {
 		}
 	}
 };
+
+template<typename _T, int _Rows, int _Cols>
+struct MatrixBlock : MatrixBlockBase<_T, _Rows, _Cols> {
+	MatrixBlock(_T* _dataStart, int _stride) : MatrixBlockBase(_dataStart, _stride) { }
+
+	void operator=(const Matrix<_MutableT, _Rows, _Cols>& mat) {
+		// Is this legal??
+		MatrixBlockBase<_T, _Rows, _Cols>::operator=(mat);
+	}
+};
+
+
+template<typename _T, int _Rows>
+struct MatrixBlock<_T, _Rows, 1> : MatrixBlockBase<_T, _Rows, 1> {
+	MatrixBlock(_T* _dataStart, int _stride) : MatrixBlockBase(_dataStart, _stride) { }
+
+	void operator=(const Vector<_MutableT, _Rows>& vec) {
+		BNS_FOR_I(_Rows) {
+			dataStart[stride * i] = vec.data[i];
+		}
+	}
+};
+
+template<typename _T, int _Cols>
+struct MatrixBlock<_T, 1, _Cols> : MatrixBlockBase<_T, 1, _Cols> {
+	MatrixBlock(_T* _dataStart, int _stride) : MatrixBlockBase(_dataStart, _stride) { }
+
+	void operator=(const Vector<_MutableT, _Cols>& vec) {
+		BNS_FOR_I(_Cols) {
+			dataStart[i] = vec.data[i];
+		}
+	}
+};
+
 
 // Stored row major (i.e. row0 | row1 | row2 ...)
 template<typename _T, int _Rows, int _Cols>
@@ -305,8 +358,8 @@ struct Matrix {
 		
 		BNS_FOR_I(_OtherCols) {
 			BNS_FOR_J(_Rows) {
-				_T val;
-				BNS_FOR_NAME(k, _B) {
+				_T val = 0;
+				BNS_FOR_NAME(k, _Cols) {
 					val += ((*this)(j, k) * other(k, i));
 				}
 
@@ -370,6 +423,10 @@ struct Vector3f : Vector<float, 3> {
 		data[2] = _z;
 	}
 
+	static Vector3f XAxis() { return Vector3f(1, 0, 0); }
+	static Vector3f YAxis() { return Vector3f(0, 1, 0); }
+	static Vector3f ZAxis() { return Vector3f(0, 0, 1); }
+
 	float x() const { return data[0]; }
 	float& x() { return data[0]; }
 	float y() const { return data[1]; }
@@ -383,10 +440,114 @@ typedef Matrix<float, 3, 3> Matrix3f;
 typedef Matrix<float, 4, 4> Matrix4f;
 
 // Quaternion
+template<typename _T>
+struct Quaternion {
+	union {
+		struct {
+			_T w;
+			_T x;
+			_T y;
+			_T z;
+		};
 
-//Matrix3f AngleAxis(float, Vector3f)
+		_T wxyz[4];
+	};
 
-// Matrix2f RotationMat(float 
+	Quaternion() { }
+
+	Quaternion(_T _w, _T _x, _T _y, _T _z) {
+		w = _w;
+		x = _x;
+		y = _y;
+		z = _z;
+	}
+
+	Quaternion(Vector3f vec) {
+		w = 0.0f;
+		x = vec.x();
+		y = vec.y();
+		z = vec.z();
+	}
+
+	Quaternion(Vector3f axis, _T angleDegrees) {
+		_T angleRadians = angleDegrees * BNS_DEG2RAD;
+		_T halfAngle = angleRadians / 2;
+		w = cos(halfAngle);
+
+		Vector3f normalizedAxis = axis.Normalized();
+		_T sinHalfAngle = sin(halfAngle);
+
+		y = normalizedAxis.y() * sinHalfAngle;
+		z = normalizedAxis.z() * sinHalfAngle;
+		x = normalizedAxis.x() * sinHalfAngle;
+	}
+
+	Quaternion<_T> Normalized() const {
+		_T sqrMag = w * w + x * x + y * y + z * z;
+		_T s = 1 / sqrt(sqrMag);
+
+		Quaternion<_T> ret;
+		ret.w = w * s;
+		ret.x = x * s;
+		ret.y = y * s;
+		ret.z = z * s;
+		return ret;
+	}
+
+	Quaternion<_T> operator*(const Quaternion<_T>& multQuat) const {
+		return Quaternion(w*multQuat.w - x * multQuat.x - y * multQuat.y - z * multQuat.z,
+			              x*multQuat.w + w * multQuat.x - z * multQuat.y + y * multQuat.z,
+			              y*multQuat.w + z * multQuat.x + w * multQuat.y - x * multQuat.z,
+			              z*multQuat.w - y * multQuat.x + x * multQuat.y + w * multQuat.z);
+	}
+
+	Quaternion<_T> Conjugate() const {
+		return Quaternion<_T>(w, -x, -y, -z);
+	}
+
+	static Quaternion<_T> Identity() {
+		return Quaternion(1, 0, 0, 0);
+	}
+};
+
+typedef Quaternion<float> Quaternionf;
+
+Vector3f RotateVectorByQuaternion(Vector3f vec, Quaternionf quat) {
+	Quaternionf rotate = quat.Normalized();
+	Quaternionf vectorQuat = Quaternionf(0.0f, vec.x(), vec.y(), vec.z());
+	Quaternionf conj = rotate.Conjugate();
+
+	Quaternionf finalResult = rotate * (vectorQuat * conj);
+
+	return Vector3f(finalResult.x, finalResult.y, finalResult.z);
+}
+
+
+Matrix3f AxisAngle (Vector3f axis, float degrees) {
+	Matrix3f mat;
+
+	Quaternionf quat = Quaternionf(axis, degrees);
+
+	mat.block<3, 1>(0, 0) = RotateVectorByQuaternion(Vector3f::XAxis(), quat);
+	mat.block<3, 1>(0, 1) = RotateVectorByQuaternion(Vector3f::YAxis(), quat);
+	mat.block<3, 1>(0, 2) = RotateVectorByQuaternion(Vector3f::ZAxis(), quat);
+
+	return mat;
+}
+
+Matrix2f RotationMat(float degrees) {
+	float theta = degrees * BNS_DEG2RAD;
+	float cosTheta = cos(theta);
+	float sinTheta = sin(theta);
+
+	Matrix2f mat;
+	mat(0, 0) = cosTheta;
+	mat(0, 1) = -sinTheta;
+	mat(1, 0) = sinTheta;
+	mat(1, 1) = cosTheta;
+
+	return mat;
+}
 
 template<typename _T, int _Dims>
 _T DotProduct(const Vector<_T, _Dims>& a, const Vector<_T, _Dims>& b) {
@@ -403,6 +564,139 @@ Vector3f CrossProduct(const Vector3f& a, const Vector3f& b) {
 				    (a.z()*b.x() - a.x()*b.z()),
 				    (a.x()*b.y() - a.y()*b.x()));
 }
+
+// TODO
+template<typename _T>
+struct VectorX {
+	_T* data = nullptr;
+	int dims = 0;
+
+	VectorX() { }
+
+	VectorX(int d) {
+		SetSize(d);
+	}
+
+	~VectorX() {
+		Destroy();
+	}
+
+	// TODO:
+	// Copy ctor
+	// Copy assign
+
+	// Zero
+	// Identity
+
+	void Destroy() {
+		if (data != nullptr) {
+			delete[] data;
+			data = nullptr;
+		}
+	}
+
+	void SetSize(int d) {
+		if (dims != d) {
+			Destroy();
+			data = new _T[d];
+			dims = d;
+		}
+	}
+
+	_T operator()(int d) const {
+		ASSERT(d >= 0);
+		ASSERT(d < dims);
+		return data[d];
+	}
+
+	_T& operator()(int d) {
+		ASSERT(d >= 0);
+		ASSERT(d < dims);
+		return data[d];
+	}
+};
+
+// TODO
+template<typename _T>
+struct MatrixX {
+	_T* data = nullptr;
+	int rows = 0;
+	int cols = 0;
+
+	MatrixX() { }
+
+	MatrixX(int r, int c) {
+		SetSize(r, c);
+	}
+
+	// TODO:
+	// Copy ctor
+	// Copy assign
+
+	// Zero
+	// Identity
+
+	// TODO: Capacity, etc.
+	//int capacity = 0;
+
+	void Destroy() {
+		if (data != nullptr) {
+			delete[] data;
+			data = nullptr;
+		}
+	}
+
+	void SetSize(int r, int c) {
+		if (rows != r || cols != c) {
+			Destroy();
+
+			data = new _T[r*c];
+			rows = r;
+			cols = c;
+		}
+	}
+
+	_T operator()(int r, int c) const {
+		ASSERT(r >= 0);
+		ASSERT(c >= 0);
+		ASSERT(r < rows);
+		ASSERT(c < cols);
+		return data[cols * r + c];
+	}
+
+	_T& operator()(int r, int c) {
+		ASSERT(r >= 0);
+		ASSERT(c >= 0);
+		ASSERT(r < rows);
+		ASSERT(c < cols);
+		return data[cols * r + c];
+	}
+
+	// multiply vec+matrix operator
+	VectorX<_T> operator*(const VectorX<_T>& vec) {
+		ASSERT(vec.dims == cols);
+		VectorX<_T> retVal(rows);
+		BNS_FOR_J(rows) {
+			_T val = 0;
+			BNS_FOR_I(cols) {
+				val += (vec.data[i] * data[cols * j + i]);
+			}
+		}
+
+		return retVal;
+	}
+
+	~MatrixX() {
+		Destroy();
+	}
+};
+
+typedef MatrixX<float> MatrixXf;
+typedef VectorX<float> VectorXf;
+
+// TODO: Cholesky decomp
+
+// TODO: SVD Decomp
 
 }
 
