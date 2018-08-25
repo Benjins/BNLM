@@ -278,6 +278,45 @@ int main() {
 		ASSERT(vec2(4) == 0.5f);
 	}
 
+	{
+		BNLM::VectorXf vec1(5);
+		vec1.ZeroOut();
+
+		BNLM::VectorXf vec2(7);
+		vec2 = vec1;
+		ASSERT(vec2.dims == vec1.dims);
+		ASSERT(vec2.dims == 5);
+		vec1 = BNLM::VectorXf::Zero(17);
+		ASSERT(vec1.dims == 17);
+		BNS_FOR_I(17) {
+			ASSERT(vec1(i) == 0);
+		}
+		vec2 = vec2;
+		ASSERT(vec2.dims == 5);
+	}
+
+	{
+		BNLM::MatrixXf mat1(5, 7);
+		BNLM::MatrixXf mat2(43, 9);
+		mat2 = mat1;
+		ASSERT(mat2.rows == 5);
+		ASSERT(mat2.cols == 7);
+		mat1 = BNLM::MatrixXf::Identity(2, 7);
+		ASSERT(mat1.rows == 2);
+		ASSERT(mat1.cols == 7);
+		ASSERT(mat1(0, 0) == 1.0f);
+		ASSERT(mat1(0, 1) == 0.0f);
+		ASSERT(mat1(1, 1) == 1.0f);
+		mat2 = BNLM::MatrixXf::Zero(8, 19);
+		ASSERT(mat2.rows == 8);
+		ASSERT(mat2.cols == 19);
+		BNS_FOR_I(8) {
+			BNS_FOR_J(19) {
+				ASSERT(mat2(i, j) == 0);
+			}
+		}
+	}
+
 	return 0;
 }
 

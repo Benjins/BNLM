@@ -406,6 +406,9 @@ struct Vector2f : Vector<float, 2> {
 		data[0] = _x;
 		data[1] = _y;
 	}
+
+	static Vector2f XAxis() { return Vector2f(1, 0); }
+	static Vector2f YAxis() { return Vector2f(0, 1); }
 	
 	float x() const { return data[0]; }
 	float& x() { return data[0]; }
@@ -573,6 +576,9 @@ struct VectorX {
 	_T* data = nullptr;
 	int dims = 0;
 
+	// TODO: Capacity
+	// int capacity = 0;
+
 	VectorX() { }
 
 	VectorX(int d) {
@@ -590,10 +596,28 @@ struct VectorX {
 		Destroy();
 	}
 
-	// TODO:
-	// Copy assign
+	void operator=(const VectorX<_T>& orig) {
+		// TODO:
+		// Uhhhh...how is self-assignment normally handled?
+		if (data != orig.data) {
+			SetSize(orig.dims);
+			if (orig.data != nullptr) {
+				BNS_MEMCPY(data, orig.data, sizeof(_T) * dims);
+			}
+		}
+	}
 
-	// Zero
+	static inline VectorX<_T> Zero(int d) {
+		VectorX<_T> vec(d);
+		vec.ZeroOut();
+		return vec;
+	}
+
+	void inline ZeroOut() {
+		BNS_FOR_I(dims) {
+			data[i] = 0;
+		}
+	}
 
 	void Destroy() {
 		if (data != nullptr) {
@@ -603,6 +627,7 @@ struct VectorX {
 	}
 
 	void SetSize(int d) {
+		ASSERT(d >= 0);
 		if (dims != d) {
 			Destroy();
 			data = new _T[d];
@@ -630,6 +655,9 @@ struct MatrixX {
 	int rows = 0;
 	int cols = 0;
 
+	// TODO: Capacity, etc.
+	//int capacity = 0;
+
 	MatrixX() { }
 
 	MatrixX(int r, int c) {
@@ -643,22 +671,32 @@ struct MatrixX {
 		}
 	}
 
-	// TODO:
-	// Copy assign
+	void operator=(const MatrixX<_T>& orig) {
+		SetSize(orig.rows, orig.cols);
+		if (orig.data != nullptr) {
+			BNS_MEMCPY(data, orig.data, sizeof(_T) * rows * cols);
+		}
+	}
 
-	// Zero
-	// Identity
+	static inline MatrixX Zero(int r, int c) {
+		MatrixX mat(r, c);
+		mat.ZeroOut();
+		return mat;
+	}
 
-	// TODO: Capacity, etc.
-	//int capacity = 0;
+	static inline MatrixX Identity(int r, int c) {
+		MatrixX mat(r, c);
+		mat.LoadIdentity();
+		return mat;
+	}
 
-	void ZeroOut() {
+	inline void ZeroOut() {
 		BNS_FOR_I(rows*cols) {
 			data[i] = 0;
 		}
 	}
 
-	void LoadIdentity() {
+	inline void LoadIdentity() {
 		BNS_FOR_I(rows) {
 			BNS_FOR_J(cols) {
 				data[i * cols + j] = (i == j) ? 1 : 0;
