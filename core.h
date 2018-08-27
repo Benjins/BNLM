@@ -10,6 +10,50 @@
 
 namespace BNLM {
 
+template<typename _T>
+struct MatrixDynamicBlock {
+	// NOTE: Could have dangling pointers, this is just meant for temporaries
+	_T* data = nullptr;
+	int rows = 0;
+	int cols = 0;
+
+	_T operator()(int r, int c) const {
+		ASSERT(r >= 0);
+		ASSERT(c >= 0);
+		ASSERT(r < rows);
+		ASSERT(c < cols);
+		return data[cols * r + c];
+	}
+
+	_T& operator()(int r, int c) {
+		ASSERT(r >= 0);
+		ASSERT(c >= 0);
+		ASSERT(r < rows);
+		ASSERT(c < cols);
+		return data[cols * r + c];
+	}
+};
+
+template<typename _T>
+struct VectorDynamicBlock {
+	// NOTE: Could have dangling pointers, this is just meant for temporaries
+	_T* data = nullptr;
+	int dims = 0;
+
+
+	_T operator()(int d) const {
+		ASSERT(d >= 0);
+		ASSERT(d < dims);
+		return data[d];
+	}
+
+	_T& operator()(int d) {
+		ASSERT(d >= 0);
+		ASSERT(d < dims);
+		return data[d];
+	}
+};
+
 // Bleeeegghh
 template<typename _T, int _Rows, int _Cols>
 struct Matrix;
@@ -29,6 +73,20 @@ struct Vector {
 		ASSERT(d >= 0);
 		ASSERT(d < _Dims);
 		return data[d];
+	}
+
+	operator VectorDynamicBlock<_T>() {
+		VectorDynamicBlock<_T> blk;
+		blk.data = data;
+		blk.dims = _Dims;
+		return blk;
+	}
+
+	operator VectorDynamicBlock<const _T>() const {
+		VectorDynamicBlock<_T> blk;
+		blk.data = data;
+		blk.dims = _Dims;
+		return blk;
 	}
 
 	Vector<_T, _Dims + 1> homo() const {
@@ -292,6 +350,22 @@ struct Matrix {
 				(*this)(j, i) = blk(j, i);
 			}
 		}
+	}
+
+	operator MatrixDynamicBlock<_T>() {
+		MatrixDynamicBlock<_T> blk;
+		blk.data = data;
+		blk.rows = _Rows;
+		blk.cols = _Cols;
+		return blk;
+	}
+
+	operator MatrixDynamicBlock<const _T>() const {
+		MatrixDynamicBlock<_T> blk;
+		blk.data = data;
+		blk.rows = _Rows;
+		blk.cols = _Cols;
+		return blk;
 	}
 	
 	void ZeroOut() {
@@ -588,12 +662,28 @@ struct VectorX {
 		SetSize(d);
 	}
 
+	operator VectorDynamicBlock<_T>() {
+		VectorDynamicBlock<_T> blk;
+		blk.data = data;
+		blk.dims = dims;
+		return blk;
+	}
+
+	operator VectorDynamicBlock<const _T>() const {
+		VectorDynamicBlock<_T> blk;
+		blk.data = data;
+		blk.dims = dims;
+		return blk;
+	}
+
 	VectorX(const VectorX<_T>& orig) {
 		SetSize(orig.dims);
 		if (orig.data != nullptr) {
 			BNS_MEMCPY(data, orig.data, sizeof(_T) * dims);
 		}
 	}
+
+
 
 	~VectorX() {
 		Destroy();
@@ -674,6 +764,22 @@ struct MatrixX {
 		}
 	}
 
+	operator MatrixDynamicBlock<_T>() {
+		MatrixDynamicBlock<_T> blk;
+		blk.data = data;
+		blk.rows = rows;
+		blk.cols = cols;
+		return blk;
+	}
+
+	operator MatrixDynamicBlock<const _T>() const {
+		MatrixDynamicBlock<_T> blk;
+		blk.data = data;
+		blk.rows = rows;
+		blk.cols = cols;
+		return blk;
+	}
+
 	void operator=(const MatrixX<_T>& orig) {
 		SetSize(orig.rows, orig.cols);
 		if (orig.data != nullptr) {
@@ -705,6 +811,16 @@ struct MatrixX {
 				data[i * cols + j] = (i == j) ? 1 : 0;
 			}
 		}
+	}
+
+	MatrixX<_T> transpose() const {
+		MatrixX T(cols, rows);
+		BNS_FOR_I(rows) {
+			BNS_FOR_J(cols) {
+				T(j, i) = data[i * cols + j];
+			}
+		}
+		return T;
 	}
 
 	void Destroy() {
@@ -755,6 +871,23 @@ struct MatrixX {
 		return retVal;
 	}
 
+	MatrixX<_T> operator*(const MatrixX<_T>& other) const {
+		MatrixX<_T> retVal(rows, other.cols);
+
+		BNS_FOR_I(other.cols) {
+			BNS_FOR_J(rows) {
+				_T val = 0;
+				BNS_FOR_NAME(k, cols) {
+					val += ((*this)(j, k) * other(k, i));
+				}
+
+				retVal(j, i) = val;
+			}
+		}
+
+		return retVal;
+	}
+
 	~MatrixX() {
 		Destroy();
 	}
@@ -791,11 +924,11 @@ void CholeskyDecomposition(const Matrix<float, _Dim, _Dim>* mat, Matrix<float, _
 
 // TODO: Fix SVD Decomp U output
 // TODO: Dynamic SVD decomp
-template<int N>
-int EigenDecomp_maxind(int k, const  Matrix<float, N, N>* mat) {
+int EigenDecomp_maxind(int k, const MatrixDynamicBlock<float>& mat) {
+	ASSERT(mat.cols == mat.rows);
 	int m = k + 1;
-	for (int i = k + 2; i < N; i++) {
-		if (BNS_ABS((*mat)(k, i)) > BNS_ABS((*mat)(k, m))) {
+	for (int i = k + 2; i < mat.cols; i++) {
+		if (BNS_ABS(mat(k, i)) > BNS_ABS(mat(k, m))) {
 			m = i;
 		}
 	}
@@ -803,42 +936,62 @@ int EigenDecomp_maxind(int k, const  Matrix<float, N, N>* mat) {
 	return m;
 }
 
-template<int N>
-void EigenDecomp_update(int k, float t, Vector<float,  N>* outVals, BitSet* changed, int* state, float* __y) {
-	float y = (*outVals)(k);
-	(*outVals)(k) = y + t;
-	if (changed->GetBit(k) && y == (*outVals)(k)) {
+void EigenDecomp_update(int k, float t, VectorDynamicBlock<float> outVals, BitSet* changed, int* state, float* __y) {
+	float y = outVals(k);
+	(outVals)(k) = y + t;
+	if (changed->GetBit(k) && y == (outVals)(k)) {
 		changed->SetBit(k, false);
 		(*state)--;
 	}
-	else if (!changed->GetBit(k) && y != (*outVals)(k)) {
+	else if (!changed->GetBit(k) && y != (outVals)(k)) {
 		changed->SetBit(k, true);
 		(*state)++;
 	}
 }
 
-template<int N>
-void EigenDecomp_rotate( Matrix<float, N, N>* mat, int k, int l, int i, int j, float c, float s) {
-	float newKL = c * (*mat)(k, l) - s * (*mat)(i, j);
-	float newIJ = s * (*mat)(k, l) + c * (*mat)(i, j);
-	(*mat)(k, l) = newKL;
-	(*mat)(i, j) = newIJ;
+void EigenDecomp_rotate(MatrixDynamicBlock<float> mat, int k, int l, int i, int j, float c, float s) {
+	float newKL = c * mat(k, l) - s * mat(i, j);
+	float newIJ = s * mat(k, l) + c * mat(i, j);
+	mat(k, l) = newKL;
+	mat(i, j) = newIJ;
 }
 
+void EigenDecomposition_internal(VectorDynamicBlock<float> outVals, MatrixDynamicBlock<float> outVecs, MatrixDynamicBlock<float> matScratch, VectorDynamicBlock<int> ind);
+
 template<int _Dim>
-void EigenDecomposition(const  Matrix<float, _Dim, _Dim>* matOrig, Vector<float,  _Dim>* outVals,  Matrix<float, _Dim, _Dim>* outVecs) {
-	 Matrix<float, _Dim, _Dim> matScratch = *matOrig;
+void EigenDecomposition(const Matrix<float, _Dim, _Dim>* matOrig, Vector<float, _Dim>* outVals, Matrix<float, _Dim, _Dim>* outVecs) {
+	Matrix<float, _Dim, _Dim> matScratch = *matOrig;
+	Vector<int, _Dim> ind;
+	outVecs->LoadIdentity();
+	EigenDecomposition_internal(*outVals, *outVecs, matScratch, ind);
+}
+
+void EigenDecomposition(const MatrixX<float>* matOrig, VectorX<float>* outVals, MatrixX<float>* outVecs) {
+	ASSERT(matOrig->cols == matOrig->rows);
+	MatrixX<float> matScratch = *matOrig;
+	VectorX<int> ind(matScratch.cols);
+
+	outVals->SetSize(matOrig->cols);
+	outVecs->SetSize(matOrig->rows, matOrig->cols);
+	outVecs->LoadIdentity();
+	EigenDecomposition_internal(*outVals, *outVecs, matScratch, ind);
+}
+
+void EigenDecomposition_internal(VectorDynamicBlock<float> outVals, MatrixDynamicBlock<float> outVecs, MatrixDynamicBlock<float> matScratch, VectorDynamicBlock<int> ind) {
+	ASSERT(matScratch.cols == matScratch.rows);
+	
+	const int _Dim = matScratch.cols;
+
 	int i, k, l, m, state;
 	float s, c, t, p, y, d, r;
-	Vector<int, _Dim> ind;
+	
 	BitSet changed;
 	changed.EnsureCapacity(_Dim);
 
-	outVecs->LoadIdentity();
 	state = _Dim;
 	BNS_FOR_NAME(k, _Dim) {
-		ind(k) = EigenDecomp_maxind(k, &matScratch);
-		(*outVals)(k) = matScratch(k, k);
+		ind(k) = EigenDecomp_maxind(k, matScratch);
+		outVals(k) = matScratch(k, k);
 		changed.SetBit(k, true);
 	}
 
@@ -856,7 +1009,7 @@ void EigenDecomposition(const  Matrix<float, _Dim, _Dim>* matOrig, Vector<float,
 			break;
 		}
 
-		y = ((*outVals)(l) - (*outVals)(k)) * 0.5f;
+		y = (outVals(l) - outVals(k)) * 0.5f;
 		d = BNS_ABS(y) + sqrt(p * p + y * y);
 
 		r = sqrt(p * p + d * d);
@@ -886,27 +1039,27 @@ void EigenDecomposition(const  Matrix<float, _Dim, _Dim>* matOrig, Vector<float,
 		EigenDecomp_update(l, t, outVals, &changed, &state, &y);
 
 		for (int i = 0; i < k; i++) {
-			EigenDecomp_rotate(&matScratch, i, k, i, l, c, s);
+			EigenDecomp_rotate(matScratch, i, k, i, l, c, s);
 		}
 
 		for (int i = k + 1; i < l; i++) {
-			EigenDecomp_rotate(&matScratch, k, i, i, l, c, s);
+			EigenDecomp_rotate(matScratch, k, i, i, l, c, s);
 		}
 
 		for (int i = l + 1; i < _Dim; i++) {
-			EigenDecomp_rotate(&matScratch, k, i, l, i, c, s);
+			EigenDecomp_rotate(matScratch, k, i, l, i, c, s);
 		}
 
 		BNS_FOR_I(_Dim) {
-			float newKI = c * (*outVecs)(i, k) - s * (*outVecs)(i, l);
-			float newLI = s * (*outVecs)(i, k) + c * (*outVecs)(i, l);
+			float newKI = c * outVecs(i, k) - s * outVecs(i, l);
+			float newLI = s * outVecs(i, k) + c * outVecs(i, l);
 
-			(*outVecs)(i, k) = newKI;
-			(*outVecs)(i, l) = newLI;
+			outVecs(i, k) = newKI;
+			outVecs(i, l) = newLI;
 		}
 
-		ind(k) = EigenDecomp_maxind(k, &matScratch);
-		ind(l) = EigenDecomp_maxind(l, &matScratch);
+		ind(k) = EigenDecomp_maxind(k, matScratch);
+		ind(l) = EigenDecomp_maxind(l, matScratch);
 	}
 
 	// Put eigen values in descending order, from greatest to least
@@ -914,19 +1067,19 @@ void EigenDecomposition(const  Matrix<float, _Dim, _Dim>* matOrig, Vector<float,
 	for (k = 0; k < _Dim - 1; k++) {
 		m = k;
 		for (int l = k + 1; l < _Dim; l++) {
-			if ((*outVals)(l) >(*outVals)(m)) {
+			if (outVals(l) > outVals(m)) {
 				m = l;
 			}
 		}
 		if (m != k) {
-			float tmp = (*outVals)(m);
-			(*outVals)(m) = (*outVals)(k);
-			(*outVals)(k) = tmp;
+			float tmp = outVals(m);
+			outVals(m) = outVals(k);
+			outVals(k) = tmp;
 
 			BNS_FOR_I(_Dim) {
-				tmp = (*outVecs)(i, m);
-				(*outVecs)(i, m) = (*outVecs)(i, k);
-				(*outVecs)(i, k) = tmp;
+				tmp = outVecs(i, m);
+				outVecs(i, m) = outVecs(i, k);
+				outVecs(i, k) = tmp;
 			}
 		}
 	}
@@ -948,15 +1101,32 @@ void SingularValueDecomposition(const Matrix<float, _R, _C>& mat, Matrix<float, 
 
 	{
 		Matrix<float, _R, _R> matMatTrans = mat * trans;
-		Vector<float,  _R> leftSingularLol;
+		Vector<float, _R> leftSingularLol;
 		EigenDecomposition(&matMatTrans, &leftSingularLol, outU);
 
 
 	}
+}
 
-	// TODO: Is something messed up??
-	//MatrixTransposeInPlace(outU);
-	//MatrixTransposeInPlace(outV);
+void SingularValueDecomposition(const MatrixX<float>& mat, MatrixX<float>* outU, VectorX<float>* outS, MatrixX<float>* outV) {
+	MatrixX<float> trans = mat.transpose();
+
+	{
+		MatrixX<float> matTransMat = trans * mat;
+		EigenDecomposition(&matTransMat, outS, outV);
+	}
+
+	BNS_FOR_I(outS->dims) {
+		(*outS)(i) = sqrtf((*outS)(i));
+	}
+
+	{
+		MatrixX<float> matMatTrans = mat * trans;
+		VectorX<float> leftSingularLol;
+		EigenDecomposition(&matMatTrans, &leftSingularLol, outU);
+
+
+	}
 }
 
 }

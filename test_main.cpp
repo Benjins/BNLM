@@ -390,6 +390,44 @@ int main() {
 		}
 	}
 
+	{
+		BNLM::MatrixXf mat(3, 3);
+		mat.LoadIdentity();
+		mat(0, 0) = 2.0f;
+		mat(0, 1) = 3.0f;
+		mat(0, 2) = -1.0f;
+
+		mat(1, 0) = 5.0f;
+		mat(1, 1) = -3.0f;
+		mat(1, 2) = -2.0f;
+
+		mat(2, 0) = 4.0f;
+		mat(2, 1) = 1.0f;
+		mat(2, 2) = 2.0f;
+
+		BNLM::MatrixXf U, V;
+		BNLM::VectorXf sigma;
+		BNLM::SingularValueDecomposition(mat, &U, &sigma, &V);
+
+		ASSERT(sigma.dims == 3);
+		ASSERT(U.rows == 3);
+		ASSERT(U.cols == 3);
+		ASSERT(V.rows == 3);
+		ASSERT(V.cols == 3);
+
+		BNLM::MatrixXf diag = BNLM::MatrixXf::Identity(3, 3);
+		BNS_FOR_I(3) {
+			diag(i, i) = sigma(i);
+		}
+		BNLM::MatrixXf reconstMat = U * diag * V.transpose();
+
+		BNS_FOR_I(3) {
+			BNS_FOR_J(3) {
+				ASSERT_APPROX(reconstMat(i, j), mat(i, j));
+			}
+		}
+	}
+
 	return 0;
 }
 
