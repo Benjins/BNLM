@@ -8,6 +8,8 @@
 #include "../CppUtils/vector.h"
 #include "../CppUtils/bitset.h"
 
+#include <math.h>
+
 namespace BNLM {
 
 template<typename _T>
@@ -297,7 +299,9 @@ struct MatrixBlockBase {
 
 template<typename _T, int _Rows, int _Cols>
 struct MatrixBlock : MatrixBlockBase<_T, _Rows, _Cols> {
-	MatrixBlock(_T* _dataStart, int _stride) : MatrixBlockBase(_dataStart, _stride) { }
+	MatrixBlock(_T* _dataStart, int _stride) : MatrixBlockBase<_T, _Rows, _Cols>(_dataStart, _stride) { }
+
+	typedef typename RemoveConst<_T>::type _MutableT;
 
 	void operator=(const Matrix<_MutableT, _Rows, _Cols>& mat) {
 		// Is this legal??
@@ -308,22 +312,26 @@ struct MatrixBlock : MatrixBlockBase<_T, _Rows, _Cols> {
 
 template<typename _T, int _Rows>
 struct MatrixBlock<_T, _Rows, 1> : MatrixBlockBase<_T, _Rows, 1> {
-	MatrixBlock(_T* _dataStart, int _stride) : MatrixBlockBase(_dataStart, _stride) { }
+	MatrixBlock(_T* _dataStart, int _stride) : MatrixBlockBase<_T, _Rows, 1>(_dataStart, _stride) { }
+
+	typedef typename RemoveConst<_T>::type _MutableT;
 
 	void operator=(const Vector<_MutableT, _Rows>& vec) {
 		BNS_FOR_I(_Rows) {
-			dataStart[stride * i] = vec.data[i];
+			this->dataStart[this->stride * i] = vec.data[i];
 		}
 	}
 };
 
 template<typename _T, int _Cols>
 struct MatrixBlock<_T, 1, _Cols> : MatrixBlockBase<_T, 1, _Cols> {
-	MatrixBlock(_T* _dataStart, int _stride) : MatrixBlockBase(_dataStart, _stride) { }
+	MatrixBlock(_T* _dataStart, int _stride) : MatrixBlockBase<_T, 1, _Cols>(_dataStart, _stride) { }
+
+	typedef typename RemoveConst<_T>::type _MutableT;
 
 	void operator=(const Vector<_MutableT, _Cols>& vec) {
 		BNS_FOR_I(_Cols) {
-			dataStart[i] = vec.data[i];
+			this->dataStart[i] = vec.data[i];
 		}
 	}
 };
