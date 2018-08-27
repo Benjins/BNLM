@@ -3,6 +3,8 @@
 
 
 #include "../CppUtils/assert.cpp"
+#include "../CppUtils/bitset.cpp"
+#include "../CppUtils/strings.cpp"
 #include "../CppUtils/macros.h"
 
 #include <time.h>
@@ -313,6 +315,77 @@ int main() {
 		BNS_FOR_I(8) {
 			BNS_FOR_J(19) {
 				ASSERT(mat2(i, j) == 0);
+			}
+		}
+	}
+#if 0
+	{
+		BNLM::Matrix3f Chol;
+		Chol(0, 0) = 4;
+		Chol(0, 1) = 12;
+		Chol(0, 2) = -16;
+
+		Chol(1, 0) = 12;
+		Chol(1, 1) = 37;
+		Chol(1, 2) = -43;
+
+		Chol(0, 0) = -16;
+		Chol(0, 1) = -43;
+		Chol(0, 2) = 98;
+
+		BNLM::Matrix3f Best;
+		BNLM::CholeskyDecomposition(&Chol, &Best);
+		int xc = 0;
+		(void)xc;
+	}
+
+	{
+		BNLM::Matrix3f B = BNLM::Matrix3f::Identity();
+		B(0, 0) = 2.0f;
+		B(1, 0) = 4.0f;
+		B(2, 0) = 1.5f;
+		B(2, 1) = -3.0f;
+
+		BNLM::Matrix3f BT = B.transpose();
+		BNLM::Matrix3f BBT = B * BT;
+
+		BNLM::Matrix3f Best;
+		BNLM::CholeskyDecomposition(&BBT, &Best);
+		BNS_FOR_I(3) {
+			BNS_FOR_J(3) {
+				ASSERT_APPROX(B(i, j), Best(i, j));
+			}
+		}
+	}
+#endif
+
+	{
+		BNLM::Matrix3f mat = BNLM::Matrix3f::Identity();
+		mat(0, 0) = 2.0f;
+		mat(0, 1) = 3.0f;
+		mat(0, 2) = -1.0f;
+
+		mat(1, 0) = 5.0f;
+		mat(1, 1) = -3.0f;
+		mat(1, 2) = -2.0f;
+
+		mat(2, 0) = 4.0f;
+		mat(2, 1) = 1.0f;
+		mat(2, 2) = 2.0f;
+
+		BNLM::Matrix3f U, V;
+		BNLM::Vector3f sigma;
+		BNLM::SingularValueDecomposition(mat, &U, &sigma, &V);
+
+		BNLM::Matrix3f diag = BNLM::Matrix3f::Identity();
+		BNS_FOR_I(3) {
+			diag(i, i) = sigma(i);
+		}
+		BNLM::Matrix3f reconstMat = U * diag * V.transpose();
+
+		BNS_FOR_I(3) {
+			BNS_FOR_J(3) {
+				ASSERT_APPROX(reconstMat(i, j), mat(i, j));
 			}
 		}
 	}

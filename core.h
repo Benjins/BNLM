@@ -6,6 +6,7 @@
 #include "../CppUtils/assert.h"
 #include "../CppUtils/macros.h"
 #include "../CppUtils/vector.h"
+#include "../CppUtils/bitset.h"
 
 namespace BNLM {
 
@@ -193,7 +194,7 @@ struct MatrixBlockBase {
 	}
 
 	// multiply vec+matrix operator
-	Vector<_MutableT, _Rows> operator*(const Vector<_MutableT, _Cols>& vec) {
+	Vector<_MutableT, _Rows> operator*(const Vector<_MutableT, _Cols>& vec) const {
 		Vector<_MutableT, _Rows> retVal;
 		BNS_FOR_J(_Rows) {
 			_MutableT val = 0;
@@ -330,6 +331,7 @@ struct Matrix {
 				t(i, j) = (*this)(j, i);
 			}
 		}
+		return t;
 	}
 
 	Matrix<_T, _Rows, _Cols> operator*(const float s) const {
@@ -354,7 +356,7 @@ struct Matrix {
 	}
 
 	template<int _OtherCols>
-	Matrix<_T, _Rows, _OtherCols> operator*(const Matrix<_T, _Cols, _OtherCols>& other) {
+	Matrix<_T, _Rows, _OtherCols> operator*(const Matrix<_T, _Cols, _OtherCols>& other) const {
 		Matrix<_T, _Rows, _OtherCols> retVal;
 		
 		BNS_FOR_I(_OtherCols) {
@@ -417,6 +419,7 @@ struct Vector2f : Vector<float, 2> {
 };
 
 struct Vector3f : Vector<float, 3> {
+	Vector3f() { }
 	Vector3f(const Vector<float, 3>& orig) {
 		data[0] = orig.data[0];
 		data[1] = orig.data[1];
@@ -760,9 +763,201 @@ struct MatrixX {
 typedef MatrixX<float> MatrixXf;
 typedef VectorX<float> VectorXf;
 
-// TODO: Cholesky decomp
+// TODO: Fix this cholesky decomp, it's broken
+// TODO: Cholesky decomp for dynamic matrices
+/*
+template<int _Dim>
+void CholeskyDecomposition(const Matrix<float, _Dim, _Dim>* mat, Matrix<float, _Dim, _Dim>* outL) {
+	outL->ZeroOut();
+	BNS_FOR_NAME(k, _Dim) {
+		for (int i = 0; i < k; i++) {
+			float acc = 0.0f;
+			BNS_FOR_J(i) {
+				acc += (*outL)(i, j) * (*outL)(k, j);
+			}
 
-// TODO: SVD Decomp
+			(*outL)(k, i) = (*mat)(k, i) - acc;
+		}
+
+		float acc = 0.0f;
+		BNS_FOR_J(k) {
+			acc += BNS_SQR((*outL)(k, j));
+		}
+
+		(*outL)(k, k) = sqrt((*mat)(k, k) - acc);
+	}
+}
+*/
+
+// TODO: Fix SVD Decomp U output
+// TODO: Dynamic SVD decomp
+template<int N>
+int EigenDecomp_maxind(int k, const  Matrix<float, N, N>* mat) {
+	int m = k + 1;
+	for (int i = k + 2; i < N; i++) {
+		if (BNS_ABS((*mat)(k, i)) > BNS_ABS((*mat)(k, m))) {
+			m = i;
+		}
+	}
+
+	return m;
+}
+
+template<int N>
+void EigenDecomp_update(int k, float t, Vector<float,  N>* outVals, BitSet* changed, int* state, float* __y) {
+	float y = (*outVals)(k);
+	(*outVals)(k) = y + t;
+	if (changed->GetBit(k) && y == (*outVals)(k)) {
+		changed->SetBit(k, false);
+		(*state)--;
+	}
+	else if (!changed->GetBit(k) && y != (*outVals)(k)) {
+		changed->SetBit(k, true);
+		(*state)++;
+	}
+}
+
+template<int N>
+void EigenDecomp_rotate( Matrix<float, N, N>* mat, int k, int l, int i, int j, float c, float s) {
+	float newKL = c * (*mat)(k, l) - s * (*mat)(i, j);
+	float newIJ = s * (*mat)(k, l) + c * (*mat)(i, j);
+	(*mat)(k, l) = newKL;
+	(*mat)(i, j) = newIJ;
+}
+
+template<int _Dim>
+void EigenDecomposition(const  Matrix<float, _Dim, _Dim>* matOrig, Vector<float,  _Dim>* outVals,  Matrix<float, _Dim, _Dim>* outVecs) {
+	 Matrix<float, _Dim, _Dim> matScratch = *matOrig;
+	int i, k, l, m, state;
+	float s, c, t, p, y, d, r;
+	Vector<int, _Dim> ind;
+	BitSet changed;
+	changed.EnsureCapacity(_Dim);
+
+	outVecs->LoadIdentity();
+	state = _Dim;
+	BNS_FOR_NAME(k, _Dim) {
+		ind(k) = EigenDecomp_maxind(k, &matScratch);
+		(*outVals)(k) = matScratch(k, k);
+		changed.SetBit(k, true);
+	}
+
+	while (state != 0) {
+		m = 0;
+		for (int k = 1; k < _Dim - 1; k++) {
+			if (BNS_ABS(matScratch(k, ind(k))) > BNS_ABS(matScratch(m, ind(m)))) {
+				m = k;
+			}
+		}
+		k = m;
+		l = ind(m);
+		p = matScratch(k, l);
+		if (BNS_ABS(p) <= 0.000000001f) {
+			break;
+		}
+
+		y = ((*outVals)(l) - (*outVals)(k)) * 0.5f;
+		d = BNS_ABS(y) + sqrt(p * p + y * y);
+
+		r = sqrt(p * p + d * d);
+		if (r != 0.0f) {
+			c = d / r;
+			s = p / r;
+		}
+		else {
+			c = 1.0f;
+			s = 0.0f;
+		}
+
+		if (d != 0.0f) {
+			t = p * p / d;
+		}
+		else {
+			t = 0.0f;
+		}
+
+		if (y < 0) {
+			s = -s;
+			t = -t;
+		}
+
+		matScratch(k, l) = 0.0f;
+		EigenDecomp_update(k, -t, outVals, &changed, &state, &y);
+		EigenDecomp_update(l, t, outVals, &changed, &state, &y);
+
+		for (int i = 0; i < k; i++) {
+			EigenDecomp_rotate(&matScratch, i, k, i, l, c, s);
+		}
+
+		for (int i = k + 1; i < l; i++) {
+			EigenDecomp_rotate(&matScratch, k, i, i, l, c, s);
+		}
+
+		for (int i = l + 1; i < _Dim; i++) {
+			EigenDecomp_rotate(&matScratch, k, i, l, i, c, s);
+		}
+
+		BNS_FOR_I(_Dim) {
+			float newKI = c * (*outVecs)(i, k) - s * (*outVecs)(i, l);
+			float newLI = s * (*outVecs)(i, k) + c * (*outVecs)(i, l);
+
+			(*outVecs)(i, k) = newKI;
+			(*outVecs)(i, l) = newLI;
+		}
+
+		ind(k) = EigenDecomp_maxind(k, &matScratch);
+		ind(l) = EigenDecomp_maxind(l, &matScratch);
+	}
+
+	// Put eigen values in descending order, from greatest to least
+	// TODO: Absoulte value?
+	for (k = 0; k < _Dim - 1; k++) {
+		m = k;
+		for (int l = k + 1; l < _Dim; l++) {
+			if ((*outVals)(l) >(*outVals)(m)) {
+				m = l;
+			}
+		}
+		if (m != k) {
+			float tmp = (*outVals)(m);
+			(*outVals)(m) = (*outVals)(k);
+			(*outVals)(k) = tmp;
+
+			BNS_FOR_I(_Dim) {
+				tmp = (*outVecs)(i, m);
+				(*outVecs)(i, m) = (*outVecs)(i, k);
+				(*outVecs)(i, k) = tmp;
+			}
+		}
+	}
+}
+
+// TODO: Broken, don't know why plz don't use
+template<int _R, int _C>
+void SingularValueDecomposition(const Matrix<float, _R, _C>& mat, Matrix<float, _R, _R>* outU, Vector<float, _C>* outS, Matrix<float, _C, _C>* outV) {
+	Matrix<float, _C, _R> trans = mat.transpose();
+
+	{
+		Matrix<float, _C, _C> matTransMat = trans * mat;
+		EigenDecomposition(&matTransMat, outS, outV);
+	}
+
+	BNS_FOR_I(_C) {
+		(*outS)(i) = sqrtf((*outS)(i));
+	}
+
+	{
+		Matrix<float, _R, _R> matMatTrans = mat * trans;
+		Vector<float,  _R> leftSingularLol;
+		EigenDecomposition(&matMatTrans, &leftSingularLol, outU);
+
+
+	}
+
+	// TODO: Is something messed up??
+	//MatrixTransposeInPlace(outU);
+	//MatrixTransposeInPlace(outV);
+}
 
 }
 
