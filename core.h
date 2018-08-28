@@ -3,10 +3,10 @@
 
 #pragma once
 
-#include "../CppUtils/assert.h"
-#include "../CppUtils/macros.h"
-#include "../CppUtils/vector.h"
-#include "../CppUtils/bitset.h"
+#include "CppUtils/assert.h"
+#include "CppUtils/macros.h"
+#include "CppUtils/vector.h"
+#include "CppUtils/bitset.h"
 
 #include <math.h>
 
