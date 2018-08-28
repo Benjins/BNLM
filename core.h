@@ -287,14 +287,6 @@ struct MatrixBlockBase {
 		}
 	}
 	*/
-
-	void operator=(const Matrix<_MutableT, _Rows, _Cols>& mat) {
-		BNS_FOR_J(_Rows) {
-			BNS_FOR_I(_Cols) {
-				dataStart[stride * j + i] = mat.data[j * _Cols + i];
-			}
-		}
-	}
 };
 
 template<typename _T, int _Rows, int _Cols>
@@ -304,8 +296,11 @@ struct MatrixBlock : MatrixBlockBase<_T, _Rows, _Cols> {
 	typedef typename RemoveConst<_T>::type _MutableT;
 
 	void operator=(const Matrix<_MutableT, _Rows, _Cols>& mat) {
-		// Is this legal??
-		MatrixBlockBase<_T, _Rows, _Cols>::operator=(mat);
+		BNS_FOR_J(_Rows) {
+			BNS_FOR_I(_Cols) {
+				this->dataStart[this->stride * j + i] = mat.data[j * _Cols + i];
+			}
+		}
 	}
 };
 

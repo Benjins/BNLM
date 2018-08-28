@@ -1,0 +1,1 @@
+This is...a linear maths library. It is trying to find a sweet spot with API niceness, runtime performance, and compile times.
