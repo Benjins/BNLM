@@ -939,7 +939,7 @@ int EigenDecomp_maxind(int k, const MatrixDynamicBlock<float>& mat) {
 	return m;
 }
 
-void EigenDecomp_update(int k, float t, VectorDynamicBlock<float> outVals, BitSet* changed, int* state, float* __y) {
+void EigenDecomp_update(int k, float t, VectorDynamicBlock<float> outVals, BitSet* changed, int* state) {
 	float y = outVals(k);
 	(outVals)(k) = y + t;
 	if (changed->GetBit(k) && y == (outVals)(k)) {
@@ -985,7 +985,7 @@ void EigenDecomposition_internal(VectorDynamicBlock<float> outVals, MatrixDynami
 	
 	const int _Dim = matScratch.cols;
 
-	int i, k, l, m, state;
+	int k, l, m, state;
 	float s, c, t, p, y, d, r;
 	
 	BitSet changed;
@@ -1038,8 +1038,8 @@ void EigenDecomposition_internal(VectorDynamicBlock<float> outVals, MatrixDynami
 		}
 
 		matScratch(k, l) = 0.0f;
-		EigenDecomp_update(k, -t, outVals, &changed, &state, &y);
-		EigenDecomp_update(l, t, outVals, &changed, &state, &y);
+		EigenDecomp_update(k, -t, outVals, &changed, &state);
+		EigenDecomp_update(l, t, outVals, &changed, &state);
 
 		for (int i = 0; i < k; i++) {
 			EigenDecomp_rotate(matScratch, i, k, i, l, c, s);
