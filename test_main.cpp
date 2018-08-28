@@ -2,10 +2,10 @@
 #include "core.h"
 
 
-#include "../CppUtils/assert.cpp"
-#include "../CppUtils/bitset.cpp"
-#include "../CppUtils/strings.cpp"
-#include "../CppUtils/macros.h"
+#include "CppUtils/assert.cpp"
+#include "CppUtils/bitset.cpp"
+#include "CppUtils/strings.cpp"
+#include "CppUtils/macros.h"
 
 #include <time.h>
 #include <stdlib.h>
