@@ -121,7 +121,7 @@ struct Vector {
 	}
 
 	template<int _NewDims>
-	Vector<_T, _NewDims> subvec(int startIdx) {
+	Vector<_T, _NewDims> subvec(int startIdx) const {
 		static_assert(_NewDims <= _Dims, "Check dimensions on subvec");
 		static_assert(_NewDims > 0, "Check dimensions on subvec");
 		ASSERT(startIdx >= 0 && startIdx + _NewDims <= _Dims);
@@ -607,17 +607,21 @@ Vector3f RotateVectorByQuaternion(Vector3f vec, Quaternionf quat) {
 	return Vector3f(finalResult.x, finalResult.y, finalResult.z);
 }
 
-
-Matrix3f AxisAngle (Vector3f axis, float degrees) {
+// TODO: Rename to Quaternion to RotationMatrix
+Matrix3f QuaternionToAngleAxis(Quaternionf quat) {
 	Matrix3f mat;
-
-	Quaternionf quat = Quaternionf(axis, degrees);
-
 	mat.block<3, 1>(0, 0) = RotateVectorByQuaternion(Vector3f::XAxis(), quat);
 	mat.block<3, 1>(0, 1) = RotateVectorByQuaternion(Vector3f::YAxis(), quat);
 	mat.block<3, 1>(0, 2) = RotateVectorByQuaternion(Vector3f::ZAxis(), quat);
 
 	return mat;
+}
+
+Matrix3f AxisAngle (Vector3f axis, float degrees) {
+
+	Quaternionf quat = Quaternionf(axis, degrees);
+
+	return QuaternionToAngleAxis(quat);
 }
 
 Matrix2f RotationMat(float degrees) {
