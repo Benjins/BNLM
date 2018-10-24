@@ -140,6 +140,22 @@ struct Vector {
 		return retVal;
 	}
 
+	void operator+=(const Vector<_T, _Dims>& v) {
+		*this = *this + v;
+	}
+
+	void operator*=(const float s) {
+		*this = *this * s;
+	}
+
+	void operator-=(const Vector<_T, _Dims>& v) {
+		*this = *this - v;
+	}
+
+	void operator/=(const float s) {
+		*this = *this / s;
+	}
+
 	Vector<_T, _Dims> operator*(const float s) const {
 		Vector<_T, _Dims> retVal;
 		BNS_FOR_I(_Dims) {
