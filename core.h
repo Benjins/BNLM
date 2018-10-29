@@ -517,6 +517,7 @@ struct Matrix {
 	}
 };
 
+template<>
 float Matrix<float, 3, 3>::determinant() const {
 	float determinant = 0.0f;
 
