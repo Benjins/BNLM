@@ -468,14 +468,40 @@ struct Matrix {
 
 	template<int _NewR, int _NewC>
 	MatrixBlock<_T, _NewR, _NewC> block(int rStart, int cStart) {
+		ASSERT(rStart >= 0);
+		ASSERT(cStart >= 0);
+		ASSERT(rStart + _NewR <= _Rows);
+		ASSERT(cStart + _NewC <= _Cols);
 		MatrixBlock<_T, _NewR, _NewC> blk(&data[rStart * _Cols + cStart], _Cols);
 		return blk;
+	}
+
+	Vector<_T, _Rows> column(int idx) {
+		ASSERT(idx >= 0 && idx < _Cols);
+		Vector<_T, _Rows> ret;
+		BNS_FOR_I(_Rows) {
+			ret(i) = data[i * _Cols + idx];
+		}
+		return ret;
+	}
+
+	Vector<_T, _Cols> row(int idx) const {
+		ASSERT(idx >= 0 && idx < _Rows);
+		Vector<_T, _Cols> ret;
+		BNS_FOR_I(_Cols) {
+			ret(i) = data[idx * _Cols + i];
+		}
+		return ret;
 	}
 
 	template<int _NewR, int _NewC>
 	MatrixBlock<const _T, _NewR, _NewC> block(int rStart, int cStart) const {
 		MatrixBlock<const _T, _NewR, _NewC> blk(&data[rStart * _Cols + cStart], _Cols);
 		return blk;
+	}
+
+	_T determinant() const {
+		static_assert(false, "Determinant not currently implemented for this kind of matrix...sorry");
 	}
 
 	static Matrix<_T, _Rows, _Cols> Identity() {
@@ -490,6 +516,28 @@ struct Matrix {
 		return mat;
 	}
 };
+
+float Matrix<float, 3, 3>::determinant() const {
+	float determinant = 0.0f;
+
+	float sign[3] = { 1.0f, -1.0f, 1.0f };
+
+	BNS_FOR_I(3) {
+		float topRow = data[i];
+
+		int subDetCol0 = (i + 1) % 3;
+		int subDetCol1 = (i + 2) % 3;
+
+		if (subDetCol0 > subDetCol1) {
+			BNS_SWAP_VAL(subDetCol0, subDetCol1);
+		}
+
+		float subDeterminant = data[1 * 3 + subDetCol0] * data[2 * 3 + subDetCol1] - data[1 * 3 + subDetCol1] * data[2 * 3 + subDetCol0];
+		determinant += subDeterminant * topRow * sign[i];
+	}
+
+	return determinant;
+}
 
 struct Vector2f : Vector<float, 2> {
 	Vector2f() { }
