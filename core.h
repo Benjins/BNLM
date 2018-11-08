@@ -540,6 +540,11 @@ float Matrix<float, 3, 3>::determinant() const {
 	return determinant;
 }
 
+template<>
+float Matrix<float, 2, 2>::determinant() const {
+	return data[0] * data[3] - data[1] * data[2];
+}
+
 struct Vector2f : Vector<float, 2> {
 	Vector2f() { }
 	Vector2f(const Vector<float, 2>& orig) {
@@ -703,6 +708,58 @@ Matrix2f RotationMat(float degrees) {
 	return mat;
 }
 
+Vector3f ConvertRotationMatrixToEulerAngles(const Matrix3f& mat) {
+	float sy = sqrt(BNS_SQR(mat(0, 0)) + BNS_SQR(mat(1, 0)));
+
+	Vector3f eulers;
+
+	if (sy < 0.000001f) {
+		eulers.x() = atan2(-mat(1, 2), mat(1, 1));
+		eulers.y() = atan2(-mat(2, 0), sy);
+		eulers.z() = 0;
+	}
+	else {
+		eulers.x() = atan2(mat(2, 1), mat(2, 2));
+		eulers.y() = atan2(-mat(2, 0), sy);
+		eulers.z() = atan2(mat(1, 0), mat(0, 0));
+	}
+
+	return eulers;
+}
+
+Matrix3f ConvertEulerAnglesToRotationMatrix(Vector3f angles) {
+	float s1 = sin(angles.x()), c1 = cos(angles.x());
+	float s2 = sin(angles.y()), c2 = cos(angles.y());
+	float s3 = sin(angles.z()), c3 = cos(angles.z());
+
+	Matrix3f xRot, yRot, zRot;
+	xRot.LoadIdentity();
+	yRot.LoadIdentity();
+	zRot.LoadIdentity();
+
+	xRot(1, 1) = c1;
+	xRot(1, 2) = -s1;
+	xRot(2, 1) = s1;
+	xRot(2, 2) = c1;
+
+	yRot(0, 0) = c2;
+	yRot(0, 2) = s2;
+	yRot(2, 0) = -s2;
+	yRot(2, 2) = c2;
+
+	zRot(0, 0) = c3;
+	zRot(0, 1) = -s3;
+	zRot(1, 0) = s3;
+	zRot(1, 1) = c3;
+
+	Matrix3f ret = zRot * yRot * xRot;
+	BNS_FOR_I(3) {
+		ret.block<3, 1>(0, i) = ret.column(i).Normalized();
+	}
+
+	return ret;
+}
+
 template<typename _T, int _Dims>
 _T DotProduct(const Vector<_T, _Dims>& a, const Vector<_T, _Dims>& b) {
 	_T acc = 0;
@@ -717,6 +774,10 @@ Vector3f CrossProduct(const Vector3f& a, const Vector3f& b) {
 	return Vector3f((a.y()*b.z() - a.z()*b.y()),
 				    (a.z()*b.x() - a.x()*b.z()),
 				    (a.x()*b.y() - a.y()*b.x()));
+}
+
+float CrossProduct(const Vector2f& a, const Vector2f& b) {
+	return a.x()*b.y() - a.y()*b.x();
 }
 
 // TODO
@@ -1175,8 +1236,6 @@ void SingularValueDecomposition(const Matrix<float, _R, _C>& mat, Matrix<float, 
 		Matrix<float, _R, _R> matMatTrans = mat * trans;
 		Vector<float, _R> leftSingularLol;
 		EigenDecomposition(&matMatTrans, &leftSingularLol, outU);
-
-
 	}
 }
 
@@ -1196,8 +1255,6 @@ void SingularValueDecomposition(const MatrixX<float>& mat, MatrixX<float>* outU,
 		MatrixX<float> matMatTrans = mat * trans;
 		VectorX<float> leftSingularLol;
 		EigenDecomposition(&matMatTrans, &leftSingularLol, outU);
-
-
 	}
 }
 
