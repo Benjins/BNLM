@@ -466,6 +466,30 @@ struct Matrix {
 		return retVal;
 	}
 
+	Matrix<_T, _Rows, _Cols> operator+(const Matrix<_T, _Rows, _Cols>& other) const {
+		Matrix<_T, _Rows, _Cols> retVal;
+
+		BNS_FOR_I(_Cols) {
+			BNS_FOR_J(_Rows) {
+				retVal(j, i) = (*this)(j, i) + other(j, i);
+			}
+		}
+
+		return retVal;
+	}
+
+	Matrix<_T, _Rows, _Cols> operator-(const Matrix<_T, _Rows, _Cols>& other) const {
+		Matrix<_T, _Rows, _Cols> retVal;
+
+		BNS_FOR_I(_Cols) {
+			BNS_FOR_J(_Rows) {
+				retVal(j, i) = (*this)(j, i) - other(j, i);
+			}
+		}
+
+		return retVal;
+	}
+
 	template<int _NewR, int _NewC>
 	MatrixBlock<_T, _NewR, _NewC> block(int rStart, int cStart) {
 		ASSERT(rStart >= 0);
@@ -1255,6 +1279,39 @@ void SingularValueDecomposition(const MatrixX<float>& mat, MatrixX<float>* outU,
 		MatrixX<float> matMatTrans = mat * trans;
 		VectorX<float> leftSingularLol;
 		EigenDecomposition(&matMatTrans, &leftSingularLol, outU);
+	}
+}
+
+// TODO: For now only square matrices
+// Also there's no real error checking on rank/linear independence, etc.
+template<int _Dim>
+void SolveGaussianEliminationProblem(Matrix<float, _Dim, _Dim> coeffs, Vector<float, _Dim> lhs, Vector<float, _Dim>* outVals) {
+	// Convert matrix into upper triangular
+	// For each column (except the last)
+	BNS_FOR_J(_Dim - 1) {
+		const float diag = coeffs(j, j);
+		for (int i = j + 1; i < _Dim; i++) {
+			float current = coeffs(i, j);
+			float multipleToSubtract = current / diag;
+
+			// Subtract multipleToSubtract * jth row from ith row (including lhs)
+			for (int k = j; k < _Dim; k++) {
+				coeffs(i, k) -= multipleToSubtract * coeffs(j, k);
+			}
+
+			lhs(i) -= multipleToSubtract * lhs(j);
+		}
+	}
+
+	// Once we have an upper triangulat coefficients matrix, work our way
+	// back up from the bottom, substituting values as needed
+	for (int i = _Dim - 1; i >= 0; i--) {
+		float acc = 0.0f;
+		for (int j = i + 1; j < _Dim; j++) {
+			acc += coeffs(i, j) * (*outVals)(j);
+		}
+
+		(*outVals)(i) = (lhs(i) - acc) / coeffs(i, i);
 	}
 }
 
