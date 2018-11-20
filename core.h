@@ -614,6 +614,26 @@ struct Vector3f : Vector<float, 3> {
 	float& z() { return data[2]; }
 };
 
+struct Vector2i : Vector<int, 2> {
+	Vector2i() { }
+
+	Vector2i(const Vector<int, 2>& orig) {
+		data[0] = orig.data[0];
+		data[1] = orig.data[1];
+	}
+
+	Vector2i(int _x, int _y) {
+		data[0] = _x;
+		data[1] = _y;
+	}
+
+	int x() const { return data[0]; }
+	int& x() { return data[0]; }
+	int y() const { return data[1]; }
+	int& y() { return data[1]; }
+};
+
+
 typedef Matrix<float, 2, 2> Matrix2f;
 typedef Matrix<float, 3, 3> Matrix3f;
 typedef Matrix<float, 4, 4> Matrix4f;
