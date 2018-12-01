@@ -332,6 +332,12 @@ struct MatrixBlock<_T, _Rows, 1> : MatrixBlockBase<_T, _Rows, 1> {
 			this->dataStart[this->stride * i] = vec.data[i];
 		}
 	}
+
+	void operator+=(const Vector<_MutableT, _Rows>& vec) {
+		BNS_FOR_I(_Rows) {
+			this->dataStart[this->stride * i] += vec.data[i];
+		}
+	}
 };
 
 template<typename _T, int _Cols>
@@ -343,6 +349,12 @@ struct MatrixBlock<_T, 1, _Cols> : MatrixBlockBase<_T, 1, _Cols> {
 	void operator=(const Vector<_MutableT, _Cols>& vec) {
 		BNS_FOR_I(_Cols) {
 			this->dataStart[i] = vec.data[i];
+		}
+	}
+
+	void operator+=(const Vector<_MutableT, _Cols>& vec) {
+		BNS_FOR_I(_Cols) {
+			this->dataStart[i] += vec.data[i];
 		}
 	}
 };
