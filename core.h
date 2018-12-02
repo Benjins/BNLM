@@ -77,6 +77,15 @@ struct Vector {
 		return data[d];
 	}
 
+	template<typename _OtherT>
+	Vector<_OtherT, _Dims> cast() const {
+		Vector<_OtherT, _Dims> ret;
+		BNS_FOR_I(_Dims) {
+			ret.data[i] = (_OtherT)data[i];
+		}
+		return ret;
+	}
+
 	operator VectorDynamicBlock<_T>() {
 		VectorDynamicBlock<_T> blk;
 		blk.data = data;
@@ -624,6 +633,26 @@ struct Vector3f : Vector<float, 3> {
 	float& y() { return data[1]; }
 	float z() const { return data[2]; }
 	float& z() { return data[2]; }
+};
+
+struct Vector2d: Vector<double, 2> {
+	Vector2d() { }
+	Vector2d(const Vector<double, 2>& orig) {
+		data[0] = orig.data[0];
+		data[1] = orig.data[1];
+	}
+	Vector2d(float _x, float _y) {
+		data[0] = _x;
+		data[1] = _y;
+	}
+
+	static Vector2d XAxis() { return Vector2d(1, 0); }
+	static Vector2d YAxis() { return Vector2d(0, 1); }
+
+	double x() const { return data[0]; }
+	double& x() { return data[0]; }
+	double y() const { return data[1]; }
+	double& y() { return data[1]; }
 };
 
 struct Vector2i : Vector<int, 2> {
