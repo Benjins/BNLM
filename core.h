@@ -229,12 +229,12 @@ struct Vector {
 
 	bool operator!=(const Vector<_T, _Dims>& other) const {
 		BNS_FOR_I(_Dims) {
-			if (other.data[i] == data[i]) {
-				return false;
+			if (other.data[i] != data[i]) {
+				return true;
 			}
 		}
 
-		return true;
+		return false;
 	}
 };
 
